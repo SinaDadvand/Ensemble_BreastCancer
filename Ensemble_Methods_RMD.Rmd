@@ -1,0 +1,281 @@
+---
+title: "Ensemble Mothod for Breast Cancer Dataset"
+author: "Sina Dadvand Kouhi"
+date: "3/8/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r Loading Libraries}
+# install.packages("mlbench")
+require(mlbench)
+
+# install.packages("naniar")
+library(naniar)
+
+# install.packages("caret")
+library(caret)
+
+# install.packages("e1071")
+library(e1071)
+
+# install.packages("klaR")
+library(klaR)
+
+# install.packages("nnet")
+library(nnet)
+
+# install.packages("rpart")
+library(rpart)
+
+# install.packages("MASS")
+library(MASS)
+
+# install.packages("randomForest")
+library(randomForest)
+```
+
+
+```{r Loading the Breast Cancer Data}
+
+data(BreastCancer)
+
+```
+
+```{r Preprocessing data}
+#Check for missing values
+sum(is.na(BreastCancer))
+
+#Plotting the percentage of missing values
+gg_miss_var(BreastCancer, show_pct = T)
+
+# some algorithms don't like missing values, so remove rows with missing values
+BreastCancer <- na.omit(BreastCancer) 
+
+# BreastCancer$Class <- ifelse(BreastCancer$Class == "benign",0,1)
+```
+
+```{r Selecting columns}
+
+BreastCancer$Id <- NULL 
+```
+
+Next, we will partition the dataset into train data (80%) and test data(20%)
+
+```{r Partitioning data into train and test}
+# partition the data set for 80% training and 20% evaluation (adapted from ?randomForest)
+set.seed(2)
+
+ind <- sample(2, nrow(BreastCancer), replace = TRUE, prob=c(0.6, 0.4))
+
+BC.train <- BreastCancer[ind==1,]
+BC.test <- BreastCancer[ind==2,]
+```
+
+We will define a simple function for calculating accuarcy of our models:
+```{r Define a fucntion for calculation}
+acc_calculation = function(actual, predicted) {
+  mean(actual == predicted)
+}
+
+```
+
+Then, we begin training multiple classification models on the train data set.
+
+Starting with SVM model:
+```{r Support Vector Machine model}
+
+mysvm <- svm(Class ~ ., BC.train)
+mysvm.pred <- predict(mysvm, BC.train)
+table(mysvm.pred,BC.train$Class)
+
+svm_acc = round(acc_calculation(predicted = mysvm.pred, actual = BC.train$Class),4)
+# you can alternatively check the accuracy with the line below from caret package:
+# confusionMatrix(mysvm.pred,BC.train$Class)
+
+```
+
+
+Naive Bayes Model:
+```{r Naive Bayes model}
+
+mynb <- NaiveBayes(Class ~ ., BC.train)
+mynb.pred <- predict(mynb,BC.train)
+table(mynb.pred$class,BC.train$Class)
+
+nb_acc = round(acc_calculation(predicted = mynb.pred$class, actual = BC.train$Class),4)
+
+```
+
+Neural Network Model
+```{r Neural Network model}
+
+mynnet <- nnet(Class ~ ., BC.train, size=1)
+mynnet.pred <- predict(mynnet,BC.train,type="class")
+table(mynnet.pred,BC.train$Class)
+
+nnet_acc = round(acc_calculation(predicted = mynnet.pred, actual = BC.train$Class),4)
+```
+
+Decision Tree Model:
+```{r Decision Tree Model}
+mytree <- rpart(Class ~ ., BC.train)
+plot(mytree); text(mytree) # in "BC.train_tree.ps"
+summary(mytree)
+mytree.pred <- predict(mytree,BC.train,type="class")
+table(mytree.pred,BC.train$Class)
+
+tree_acc = round(acc_calculation(predicted = mytree.pred, actual = BC.train$Class),4)
+```
+
+Leave-1-Out Cross Validation (LOOCV):
+```{r Leave-1-Out Cross Validation Model}
+# 
+# ans <- numeric(length(BC.train[,1]))
+# for (i in 1:length(BC.train[,1])) {
+#   mytree <- rpart(Class ~ ., BC.train[-i,])
+#   mytree.pred <- predict(mytree,BC.train[i,],type="class")
+#   ans[i] <- mytree.pred
+# }
+# LOOCV.pred <- factor(ans,labels=levels(BC.train$Class))
+# table(LOOCV.pred,BC.train$Class)
+# 
+# LOOCV_acc = round(acc_calculation(predicted = LOOCV.pred, actual = BC.train$Class),4)
+```
+
+QDA Model:
+```{r Quadratic Discriminant Analysis Model}
+
+BC.train.qda <- lapply(BC.train,as.numeric)
+BC.train.qda$Class <- factor(BC.train.qda$Class, labels = c("benign", "malignant"))
+
+myqda <- qda(Class ~ ., BC.train.qda)
+myqda.pred <- predict(myqda, BC.train.qda)
+table(myqda.pred$class,BC.train.qda$Class)
+
+qda_acc = round(acc_calculation(predicted = myqda.pred$class, actual = BC.train$Class),4)
+```
+
+Regularised Discriminant Analysis:
+```{r Regularised Discriminant Analysis Model}
+
+myrda <- rda(Class ~ ., BC.train)
+myrda.pred <- predict(myrda, BC.train)
+table(myrda.pred$class,BC.train$Class)
+
+rda_acc = round(acc_calculation(predicted = myrda.pred$class, actual = BC.train$Class),4)
+```
+
+Random Forests:
+```{r Random Forests Model}
+
+myrf <- randomForest(Class ~ .,BC.train)
+myrf.pred <- predict(myrf, BC.train)
+table(myrf.pred, BC.train$Class)
+
+rf_acc = round(acc_calculation(predicted = myrf.pred, actual = BC.train$Class),4)
+```
+
+```{r Train set accuracies}
+train_accuracies <- data.frame( Method =c("SVM","Naive Bayes","NNet","Decision Tree","QDA","RDA","Random Forest"), Train_set_Accuracy= c(svm_acc,nb_acc,nnet_acc,tree_acc,qda_acc,rda_acc,rf_acc))
+  
+train_accuracies
+```
+```{r Test set accuracies}
+# for SVM Model
+mysvm.pred <- predict(mysvm, BC.test)
+table(mysvm.pred,BC.test$Class)
+svm_acc = round(acc_calculation(predicted = mysvm.pred, actual = BC.test$Class),4)
+
+# for Naive Bayes Model
+mynb.pred <- predict(mynb,BC.test)
+table(mynb.pred$class,BC.test$Class)
+nb_acc = round(acc_calculation(predicted = mynb.pred$class, actual = BC.test$Class),4)
+
+# for Neural Network Model
+mynnet.pred <- predict(mynnet,BC.test,type="class")
+table(mynnet.pred,BC.test$Class)
+nnet_acc = round(acc_calculation(predicted = mynnet.pred, actual = BC.test$Class),4)
+
+# for Decision Tree Model
+mytree.pred <- predict(mytree,BC.test,type="class")
+table(mytree.pred,BC.test$Class)
+tree_acc = round(acc_calculation(predicted = mytree.pred, actual = BC.test$Class),4)
+
+
+# for QDA Model
+BC.test.qda <- lapply(BC.test,as.numeric)
+BC.test.qda$Class <- factor(BC.test.qda$Class, labels = c("benign", "malignant"))
+
+myqda.pred <- predict(myqda, BC.test.qda)
+table(myqda.pred$class,BC.test.qda$Class)
+qda_acc = round(acc_calculation(predicted = myqda.pred$class, actual = BC.test$Class),4)
+
+
+# for RDA Model
+myrda.pred <- predict(myrda, BC.test)
+table(myrda.pred$class,BC.test$Class)
+rda_acc = round(acc_calculation(predicted = myrda.pred$class, actual = BC.test$Class),4)
+
+
+# for Random Forest Model
+myrf.pred <- predict(myrf, BC.test)
+table(myrf.pred, BC.test$Class)
+rf_acc = round(acc_calculation(predicted = myrf.pred, actual = BC.test$Class),4)
+
+
+
+test_accuracies <- data.frame( Method =c("SVM","Naive Bayes","NNet","Decision Tree","QDA","RDA","Random Forest"), Test_set_Accuracy= c(svm_acc,nb_acc,nnet_acc,tree_acc,qda_acc,rda_acc,rf_acc))
+  
+test_accuracies
+
+```
+
+
+Ensemble Method
+```{r Ensemble Method}
+
+# First we will create a dataframe with prediction from all the methods:
+
+
+ensemble.df <- data.frame(SVM = mysvm.pred,
+                          Naive_Bayes = mynb.pred$class,
+                          Neural_Net = mynnet.pred,
+                          Decision_Tree = mytree.pred,
+                          QDA = myqda.pred$class,
+                          RDA = myrda.pred$class,
+                          Random_Forest = myrf.pred)
+head(ensemble.df)
+
+# if the class is "benign" then 0, if it is "malugnant" then 1
+ensemble_binary <- ifelse(ensemble.df == "benign",0,1) 
+rownames(ensemble_binary) <- NULL
+ensemble_binary <- as.data.frame(ensemble_binary) 
+head(ensemble_binary)
+
+# Applying Majority Rule
+ensemble_binary$Class <- ifelse(rowSums(ensemble_binary)>dim(ensemble_binary)[2]/2,"malignant","benign")
+
+head(ensemble_binary)
+
+table(ensemble_binary$Class, BC.test$Class)
+
+
+ensemble_acc = round(acc_calculation(ensemble_binary$Class, actual = BC.test$Class),4)
+
+
+ensemble_acc.df <- data.frame(Method="Ensemble", Test_set_Accuracy=ensemble_acc)
+test_accuracies <- rbind(test_accuracies,ensemble_acc.df)
+
+test_accuracies
+
+```
+
+
+
+```{r}
+# The End
+```
