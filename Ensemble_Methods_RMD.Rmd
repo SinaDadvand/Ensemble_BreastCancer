@@ -36,6 +36,9 @@ library(MASS)
 
 # install.packages("randomForest")
 library(randomForest)
+
+# install.packages("caret")
+library(caret)
 ```
 
 
@@ -131,20 +134,6 @@ table(mytree.pred,BC.train$Class)
 tree_acc = round(acc_calculation(predicted = mytree.pred, actual = BC.train$Class),4)
 ```
 
-Leave-1-Out Cross Validation (LOOCV):
-```{r Leave-1-Out Cross Validation Model}
-# 
-# ans <- numeric(length(BC.train[,1]))
-# for (i in 1:length(BC.train[,1])) {
-#   mytree <- rpart(Class ~ ., BC.train[-i,])
-#   mytree.pred <- predict(mytree,BC.train[i,],type="class")
-#   ans[i] <- mytree.pred
-# }
-# LOOCV.pred <- factor(ans,labels=levels(BC.train$Class))
-# table(LOOCV.pred,BC.train$Class)
-# 
-# LOOCV_acc = round(acc_calculation(predicted = LOOCV.pred, actual = BC.train$Class),4)
-```
 
 QDA Model:
 ```{r Quadratic Discriminant Analysis Model}
@@ -272,6 +261,7 @@ test_accuracies <- rbind(test_accuracies,ensemble_acc.df)
 
 test_accuracies
 
+confusionMatrix(as.factor(ensemble_binary$Class), BC.test$Class)
 ```
 
 
