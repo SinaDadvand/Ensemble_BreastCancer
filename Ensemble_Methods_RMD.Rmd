@@ -36,6 +36,9 @@ library(MASS)
 
 # install.packages("randomForest")
 library(randomForest)
+
+# install.packages("caret")
+library(caret)
 ```
 
 
@@ -131,20 +134,6 @@ table(mytree.pred,BC.train$Class)
 tree_acc = round(acc_calculation(predicted = mytree.pred, actual = BC.train$Class),4)
 ```
 
-Leave-1-Out Cross Validation (LOOCV):
-```{r Leave-1-Out Cross Validation Model}
-# 
-# ans <- numeric(length(BC.train[,1]))
-# for (i in 1:length(BC.train[,1])) {
-#   mytree <- rpart(Class ~ ., BC.train[-i,])
-#   mytree.pred <- predict(mytree,BC.train[i,],type="class")
-#   ans[i] <- mytree.pred
-# }
-# LOOCV.pred <- factor(ans,labels=levels(BC.train$Class))
-# table(LOOCV.pred,BC.train$Class)
-# 
-# LOOCV_acc = round(acc_calculation(predicted = LOOCV.pred, actual = BC.train$Class),4)
-```
 
 QDA Model:
 ```{r Quadratic Discriminant Analysis Model}
@@ -189,22 +178,26 @@ train_accuracies
 mysvm.pred <- predict(mysvm, BC.test)
 table(mysvm.pred,BC.test$Class)
 svm_acc = round(acc_calculation(predicted = mysvm.pred, actual = BC.test$Class),4)
+F_SVM <- F_meas( mysvm.pred,  BC.test$Class)
 
 # for Naive Bayes Model
 mynb.pred <- predict(mynb,BC.test)
 table(mynb.pred$class,BC.test$Class)
 nb_acc = round(acc_calculation(predicted = mynb.pred$class, actual = BC.test$Class),4)
+F_nb <- F_meas( mynb.pred$class,  BC.test$Class)
 
 # for Neural Network Model
 mynnet.pred <- predict(mynnet,BC.test,type="class")
 table(mynnet.pred,BC.test$Class)
 nnet_acc = round(acc_calculation(predicted = mynnet.pred, actual = BC.test$Class),4)
+F_nn <- F_meas( as.factor(mynnet.pred),  BC.test$Class)
+
 
 # for Decision Tree Model
 mytree.pred <- predict(mytree,BC.test,type="class")
 table(mytree.pred,BC.test$Class)
 tree_acc = round(acc_calculation(predicted = mytree.pred, actual = BC.test$Class),4)
-
+F_tree <- F_meas( as.factor(mytree.pred),  BC.test$Class)
 
 # for QDA Model
 BC.test.qda <- lapply(BC.test,as.numeric)
@@ -213,25 +206,28 @@ BC.test.qda$Class <- factor(BC.test.qda$Class, labels = c("benign", "malignant")
 myqda.pred <- predict(myqda, BC.test.qda)
 table(myqda.pred$class,BC.test.qda$Class)
 qda_acc = round(acc_calculation(predicted = myqda.pred$class, actual = BC.test$Class),4)
-
+F_QDA <- F_meas( myqda.pred$class,  BC.test$Class)
 
 # for RDA Model
 myrda.pred <- predict(myrda, BC.test)
 table(myrda.pred$class,BC.test$Class)
 rda_acc = round(acc_calculation(predicted = myrda.pred$class, actual = BC.test$Class),4)
-
+F_RDA <- F_meas( myrda.pred$class,  BC.test$Class)
 
 # for Random Forest Model
 myrf.pred <- predict(myrf, BC.test)
 table(myrf.pred, BC.test$Class)
 rf_acc = round(acc_calculation(predicted = myrf.pred, actual = BC.test$Class),4)
-
+F_rf <- F_meas( myrf.pred,  BC.test$Class)
 
 
 test_accuracies <- data.frame( Method =c("SVM","Naive Bayes","NNet","Decision Tree","QDA","RDA","Random Forest"), Test_set_Accuracy= c(svm_acc,nb_acc,nnet_acc,tree_acc,qda_acc,rda_acc,rf_acc))
   
 test_accuracies
 
+F_Scores <- data.frame( Method =c("SVM","Naive Bayes","NNet","Decision Tree","QDA","RDA","Random Forest"), F_Score= c(F_SVM, F_nb, F_nn, F_tree, F_QDA, F_RDA, F_rf))
+
+F_Scores
 ```
 
 
@@ -269,8 +265,15 @@ ensemble_acc = round(acc_calculation(ensemble_binary$Class, actual = BC.test$Cla
 
 ensemble_acc.df <- data.frame(Method="Ensemble", Test_set_Accuracy=ensemble_acc)
 test_accuracies <- rbind(test_accuracies,ensemble_acc.df)
-
 test_accuracies
+
+
+F_ensemble <- F_meas(as.factor(ensemble_binary$Class), BC.test$Class)
+ensemble_fscore.df <- data.frame(Method="Ensemble", F_Score=F_ensemble)
+F_Scores <- rbind(F_Scores, ensemble_fscore.df)
+F_Scores
+
+confusionMatrix(as.factor(ensemble_binary$Class), BC.test$Class)
 
 ```
 
